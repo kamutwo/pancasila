@@ -18,8 +18,12 @@ local function createTween(instance, speed, propertyTable)
 	return Tween:Create(instance, tweenInfo, propertyTable)
 end
 
+local function cardLabel(card: Part)
+	return card.Front.container.label
+end
+
 local function cardHandler(card: Part, option: string)
-	card.Front.container.label.Text = option
+	cardLabel(card).Text = option
 
 	local originalPos = card.CFrame
 	card:SetAttribute("originalPos", originalPos)
@@ -28,7 +32,7 @@ local function cardHandler(card: Part, option: string)
 		table.clear(cards)
 		card.prompt.ProximityPrompt.Enabled = false
 
-		ReplicatedStorage.Events.Question:FireServer(card, option)		
+		ReplicatedStorage.Events.Question:FireServer(card, option)
 		for _, c in pairs(connections) do c:Disconnect() end
 	end))
 
@@ -41,7 +45,6 @@ local function cardHandler(card: Part, option: string)
 	end))
 
 	table.insert(cards, card)
-
 end
 
 ReplicatedStorage.Events.Question.OnClientEvent:Connect(function(...: any)
@@ -66,44 +69,53 @@ ReplicatedStorage.Events.Question.OnClientEvent:Connect(function(...: any)
 		end
 	elseif typeof(args[1]) == "string" then
 		local answer = args[1]
-		local cardM: Part = args[2]
+		local sCard: Part = args[2]
+		local correctCard: Part = nil
 
-		for _, card in pairs (cardM.Parent:GetChildren()) do
-			if card.Name ~= "Card" then continue end
+		for _, card in pairs(sCard.Parent:GetChildren()) do
+			if card.Name == "Question" then continue end
+			local label = cardLabel(card)
+			local color: Color3 = nil
 
-			local label = card.Front.container.label
-			if label.Text ~= answer then
-				local color = Color3.fromRGB(255, 42, 42)
-				card.Front.container.ImageColor3 = color
-				label.TextColor3 = color
-
-				local highlight = Instance.new("Highlight")
-				highlight.FillTransparency = 1
-				highlight.OutlineColor = color
-				highlight.Parent = card
+			if label.Text == answer then
+				correctCard = card
+				color = sCard == card and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 255, 255)
 			else
-				local color = Color3.fromRGB(0, 255, 0)
-				card.Front.container.ImageColor3 = color
-				label.TextColor3 = color
-
-				local highlight = Instance.new("Highlight")
-				highlight.FillTransparency = 1
-				highlight.OutlineColor = color
-				highlight.Parent = card
+				color = sCard == card and Color3.fromRGB(255, 2, 2) or Color3.fromRGB(226, 30, 30)
 			end
+			card:SetAttribute("Color", color)
 
-			if card ~= cardM then
-				local tween = createTween(card, .5, { CFrame = CFrame.new(card.Position + Vector3.new(0, 0.8, 0), camera.CFrame.Position) })
-				tween:Play()				
-			end
+			local highlight = Instance.new("Highlight")
+			highlight.FillTransparency = 1
+			highlight.OutlineColor = color
+			highlight.Enabled = false
+			highlight.Parent = card
 		end
 
-		if cardM.Front.container.label.Text ~= answer then
-			print("yeah")
-			soundModule.play("Wrong", cardM, nil, nil, true)
+		if correctCard == sCard then
+			sCard.Highlight.Enabled = true
+
+			local color = sCard:GetAttribute("Color")
+			print("color")
+			sCard.Front.container.ImageColor3 = color
+			cardLabel(sCard).TextColor3 = color
+
+			soundModule.play("Correct", sCard, nil, nil, true)
 		else
-			print("no")
-			soundModule.play("Right", cardM, nil, nil, true)
+			for _, card in pairs(sCard.Parent:GetChildren()) do
+				if card.Name ~= "Card" then continue end
+				card.Highlight.Enabled = true
+
+				local color = card:GetAttribute("Color")
+				print(color)
+				card.Front.container.ImageColor3 = color
+				cardLabel(card).TextColor3 = color
+
+				local goal = card == correctCard and CFrame.lookAt(camera.CFrame.Position + camera.CFrame.LookVector * 1.5 + camera.CFrame.UpVector * -.1, camera.CFrame.Position) or CFrame.new(card:GetAttribute("originalPos").Position + Vector3.new(0, 0.8, 0), camera.CFrame.Position)
+				local tween = createTween(card, .5, { CFrame = goal })
+				tween:Play()
+			end
+			soundModule.play("Wrong", sCard, nil, nil, true)
 		end
 	end
 end)
@@ -111,7 +123,7 @@ end)
 RunService.RenderStepped:Connect(function()
 	local nearest, card = 25, nil
 	for _, c in ipairs(cards) do
-		local cardPos, onScreen = camera:WorldToViewportPoint(c:GetAttribute("originalPos").Position)
+		local cardPos, _ = camera:WorldToViewportPoint(c:GetAttribute("originalPos").Position)
 		local dist = (Vector2.new(cardPos.X, cardPos.Y) - UIS:GetMouseLocation()).Magnitude
 
 		if dist < nearest then
