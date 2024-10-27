@@ -28,7 +28,7 @@ local function cardHandler(card: Part, option: string)
 	local originalPos = card.CFrame
 	card:SetAttribute("originalPos", originalPos)
 
-	table.insert(connections, card.prompt.ProximityPrompt.Triggered:Once(function()
+	table.insert(connections, card:WaitForChild("prompt").ProximityPrompt.Triggered:Once(function()
 		table.clear(cards)
 		card.prompt.ProximityPrompt.Enabled = false
 
@@ -96,7 +96,6 @@ ReplicatedStorage.Events.Question.OnClientEvent:Connect(function(...: any)
 			sCard.Highlight.Enabled = true
 
 			local color = sCard:GetAttribute("Color")
-			print("color")
 			sCard.Front.container.ImageColor3 = color
 			cardLabel(sCard).TextColor3 = color
 
@@ -107,7 +106,6 @@ ReplicatedStorage.Events.Question.OnClientEvent:Connect(function(...: any)
 				card.Highlight.Enabled = true
 
 				local color = card:GetAttribute("Color")
-				print(color)
 				card.Front.container.ImageColor3 = color
 				cardLabel(card).TextColor3 = color
 
@@ -117,6 +115,9 @@ ReplicatedStorage.Events.Question.OnClientEvent:Connect(function(...: any)
 			end
 			soundModule.play("Wrong", sCard, nil, nil, true)
 		end
+	elseif args[1] == nil then
+		table.clear(cards)
+		for _, c in pairs(connections) do c:Disconnect() end
 	end
 end)
 
@@ -133,7 +134,6 @@ RunService.RenderStepped:Connect(function()
 	end
 
 	if not card then
-		client.PlayerGui:WaitForChild("Cursor").Enabled = true
 		selectedCard = nil
 		return
 	end
