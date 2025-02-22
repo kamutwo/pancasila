@@ -1,1 +1,1 @@
-An attempt to making a quiz game in roblox.
+An attempt to make a quiz game in Roblox.
